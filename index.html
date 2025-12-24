@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Curriculum & Attendance App</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
         * {
             margin: 0;
@@ -345,13 +347,15 @@
         }
 
         #video,
-        #captureCanvas {
+        #captureCanvas,
+        #scannerVideo {
             width: 100%;
             display: block;
             border-radius: 12px;
         }
 
-        #captureCanvas {
+        #captureCanvas,
+        #scannerCanvas {
             display: none;
         }
 
@@ -503,6 +507,7 @@
 
             <div class="nav-tabs">
                 <button class="tab-btn active" onclick="showTab('home')">Home</button>
+                <button class="tab-btn" onclick="showTab('studentLogin')">Student Login</button>
                 <button class="tab-btn" onclick="showTab('attendance')">Mark Attendance</button>
                 <button class="tab-btn" onclick="showTab('schedule')">Daily Schedule</button>
                 <button class="tab-btn" onclick="showTab('activities')">Free Period Activities</button>
@@ -528,6 +533,7 @@
                     <h3>✨ Key Features</h3>
                     <ul style="list-style-position: inside; color: #666;">
                         <li>Automated attendance via QR, Bluetooth, or Face Recognition</li>
+                        <li>Student login portal with QR scanning</li>
                         <li>Real-time attendance display</li>
                         <li>Personalized activity suggestions</li>
                         <li>Integrated daily routine planner</li>
@@ -555,6 +561,81 @@
                 <div class="stat-card">
                     <h3>3x</h3>
                     <p>Productivity Boost</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Login Section -->
+        <div id="studentLogin" class="content-section">
+            <h2>Student Portal</h2>
+
+            <div id="loginForm" class="card" style="max-width: 500px; margin: 0 auto;">
+                <h3>Login to Mark Attendance</h3>
+                <p style="color: #666; margin-bottom: 20px;">Enter your details to access the attendance system</p>
+
+                <div class="input-group">
+                    <label>Student Name</label>
+                    <input type="text" id="loginStudentName" placeholder="Enter your full name">
+                </div>
+
+                <div class="input-group">
+                    <label>Student ID</label>
+                    <input type="text" id="loginStudentId" placeholder="Enter your student ID">
+                </div>
+
+                <div class="input-group">
+                    <label>Class/Section</label>
+                    <select id="loginStudentClass">
+                        <option value="">Select your class</option>
+                        <option>CS 1st Year - Section A</option>
+                        <option>CS 2nd Year - Section A</option>
+                        <option>CS 3rd Year - Section A</option>
+                        <option>CS 4th Year - Section A</option>
+                        <option>IT 1st Year - Section B</option>
+                        <option>IT 2nd Year - Section B</option>
+                        <option>IT 3rd Year - Section B</option>
+                        <option>ECE 1st Year - Section A</option>
+                        <option>ECE 2nd Year - Section A</option>
+                        <option>ECE 3rd Year - Section A</option>
+                        <option>ECE 4th Year - Section A</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="studentLogin()" style="width: 100%;">Login</button>
+            </div>
+
+            <div id="studentDashboard" class="card" style="display: none; max-width: 800px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <h3>Welcome, <span id="loggedStudentName"></span>!</h3>
+                        <p style="color: #666;">ID: <span id="loggedStudentId"></span> | <span id="loggedStudentClass"></span></p>
+                    </div>
+                    <button class="btn" onclick="studentLogout()" style="background: #f44336;">Logout</button>
+                </div>
+
+                <div style="background: #f8f9ff; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h4 style="color: #667eea; margin-bottom: 15px;">📱 Scan QR Code to Mark Attendance</h4>
+                    <p style="color: #666; margin-bottom: 15px;">Click the button below to open your camera and scan the classroom QR code</p>
+                    <button class="btn" onclick="openQRScanner()" style="width: 100%;">
+                        📷 Open QR Code Scanner
+                    </button>
+                </div>
+
+                <div id="qrScannerSection" style="display: none;">
+                    <div class="camera-container">
+                        <video id="scannerVideo" autoplay muted playsinline></video>
+                        <canvas id="scannerCanvas" style="display: none;"></canvas>
+                        <div id="scannerOverlay" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 3px solid #4CAF50; width: 250px; height: 250px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);"></div>
+                    </div>
+                    <div class="camera-controls">
+                        <button class="btn" onclick="closeQRScanner()" style="background: #f44336;">Close Scanner</button>
+                    </div>
+                    <div id="scanStatus" class="recognition-status" style="display: none;"></div>
+                </div>
+
+                <div id="attendanceHistory" style="margin-top: 30px;">
+                    <h4 style="color: #667eea; margin-bottom: 15px;">📊 Your Attendance History</h4>
+                    <div id="historyList"></div>
                 </div>
             </div>
         </div>
@@ -628,7 +709,7 @@
                 <h3>📊 Live Attendance - Computer Science 101</h3>
                 <p style="margin-top: 10px; opacity: 0.8;">Section A | 10:00 AM - 11:00 AM</p>
 
-                <div style="display: flex; gap: 30px; margin: 20px 0;">
+                <div style="display: flex; gap: 30px; margin: 20px 0; flex-wrap: wrap;">
                     <div><strong>Total:</strong> 45</div>
                     <div style="color: #4CAF50;"><strong>Present:</strong> <span id="presentCount">38</span></div>
                     <div style="color: #f44336;"><strong>Absent:</strong> <span id="absentCount">7</span></div>
@@ -894,6 +975,11 @@
         let setupStream = null;
         let faceApiLoaded = false;
         let enrolledFaces = [];
+        let scannerStream = null;
+        let scannerVideo = null;
+        let codeReader = null;
+        let loggedInStudent = null;
+        let isScanning = false;
 
         const students = [
             'Rahul Sharma', 'Priya Patel', 'Amit Kumar', 'Sneha Singh', 'Arjun Reddy',
@@ -947,6 +1033,238 @@
                 console.error('Error loading Face-API models:', error);
                 alert('Face recognition models are loading. This may take a moment...');
             }
+        }
+
+        // Student Login Functions
+        function studentLogin() {
+            const name = document.getElementById('loginStudentName').value.trim();
+            const id = document.getElementById('loginStudentId').value.trim();
+            const studentClass = document.getElementById('loginStudentClass').value;
+
+            if (!name || !id || !studentClass) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            loggedInStudent = {
+                name: name,
+                id: id,
+                class: studentClass,
+                loginTime: new Date().toISOString()
+            };
+
+            // Save to session
+            sessionStorage.setItem('loggedInStudent', JSON.stringify(loggedInStudent));
+
+            // Show student dashboard
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('studentDashboard').style.display = 'block';
+            document.getElementById('loggedStudentName').textContent = name;
+            document.getElementById('loggedStudentId').textContent = id;
+            document.getElementById('loggedStudentClass').textContent = studentClass;
+
+            // Load attendance history
+            loadAttendanceHistory();
+        }
+
+        function studentLogout() {
+            loggedInStudent = null;
+            sessionStorage.removeItem('loggedInStudent');
+            
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('studentDashboard').style.display = 'none';
+            document.getElementById('qrScannerSection').style.display = 'none';
+            
+            // Clear form
+            document.getElementById('loginStudentName').value = '';
+            document.getElementById('loginStudentId').value = '';
+            document.getElementById('loginStudentClass').value = '';
+            
+            if (scannerStream) {
+                closeQRScanner();
+            }
+        }
+
+        // QR Scanner Functions
+        async function openQRScanner() {
+            if (!loggedInStudent) {
+                alert('Please login first');
+                return;
+            }
+
+            document.getElementById('qrScannerSection').style.display = 'block';
+            scannerVideo = document.getElementById('scannerVideo');
+
+            try {
+                scannerStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: 640, height: 480 }
+                });
+                scannerVideo.srcObject = scannerStream;
+
+                showScanStatus('Scanner ready! Point camera at QR code', 'processing');
+
+                // Initialize QR code reader
+                if (!codeReader) {
+                    codeReader = new ZXing.BrowserQRCodeReader();
+                }
+
+                isScanning = true;
+                startQRScanning();
+
+            } catch (error) {
+                console.error('Camera access error:', error);
+                showScanStatus('Unable to access camera. Please allow camera permissions.', 'error');
+            }
+        }
+
+        async function startQRScanning() {
+            if (!isScanning || !scannerVideo) return;
+
+            const canvas = document.getElementById('scannerCanvas');
+            canvas.width = scannerVideo.videoWidth;
+            canvas.height = scannerVideo.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            try {
+                ctx.drawImage(scannerVideo, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                const result = await codeReader.decodeFromImageData(imageData);
+                
+                if (result) {
+                    isScanning = false;
+                    handleQRCodeScanned(result.text);
+                    return;
+                }
+            } catch (error) {
+                // No QR code found, continue scanning
+            }
+
+            if (isScanning) {
+                setTimeout(startQRScanning, 100);
+            }
+        }
+
+        function handleQRCodeScanned(qrData) {
+            try {
+                const attendanceData = JSON.parse(qrData);
+                
+                showScanStatus('QR Code detected! Processing...', 'processing');
+
+                // Mark attendance
+                const attendanceRecord = {
+                    studentName: loggedInStudent.name,
+                    studentId: loggedInStudent.id,
+                    studentClass: loggedInStudent.class,
+                    className: attendanceData.class,
+                    section: attendanceData.section,
+                    time: attendanceData.time,
+                    date: attendanceData.date,
+                    sessionId: attendanceData.sessionId,
+                    markedAt: new Date().toISOString()
+                };
+
+                // Save attendance record
+                saveAttendanceRecord(attendanceRecord);
+
+                showScanStatus(`✓ Attendance marked successfully for ${attendanceData.class}!`, 'success');
+
+                // Update student list in teacher view
+                updateStudentAttendance(loggedInStudent.name);
+
+                // Close scanner after 2 seconds
+                setTimeout(() => {
+                    closeQRScanner();
+                    loadAttendanceHistory();
+                }, 2000);
+
+            } catch (error) {
+                console.error('QR decode error:', error);
+                showScanStatus('Invalid QR code. Please scan a valid attendance QR code.', 'error');
+                isScanning = true;
+                startQRScanning();
+            }
+        }
+
+        function closeQRScanner() {
+            isScanning = false;
+            if (scannerStream) {
+                scannerStream.getTracks().forEach(track => track.stop());
+                if (scannerVideo) scannerVideo.srcObject = null;
+            }
+            document.getElementById('qrScannerSection').style.display = 'none';
+            document.getElementById('scanStatus').style.display = 'none';
+        }
+
+        function showScanStatus(message, type) {
+            const status = document.getElementById('scanStatus');
+            status.textContent = message;
+            status.className = 'recognition-status ' + type;
+            status.style.display = 'block';
+        }
+
+        function saveAttendanceRecord(record) {
+            try {
+                let records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+                records.push(record);
+                localStorage.setItem('attendanceRecords', JSON.stringify(records));
+                console.log('Attendance saved:', record);
+            } catch (error) {
+                console.error('Error saving attendance:', error);
+            }
+        }
+
+        function loadAttendanceHistory() {
+            if (!loggedInStudent) return;
+
+            try {
+                const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+                const studentRecords = records.filter(r => r.studentId === loggedInStudent.id);
+                const historyList = document.getElementById('historyList');
+                historyList.innerHTML = '';
+
+                if (studentRecords.length === 0) {
+                    historyList.innerHTML = '<p style="color: #666;">No attendance records yet</p>';
+                    return;
+                }
+
+                studentRecords.reverse().forEach(record => {
+                    const recordDiv = document.createElement('div');
+                    recordDiv.style.cssText = 'padding: 15px; background: #f8f9ff; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #4CAF50;';
+                    
+                    const markedDate = new Date(record.markedAt);
+                    recordDiv.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <strong style="color: #667eea;">${record.className}</strong>
+                                <p style="color: #666; font-size: 0.9em; margin-top: 5px;">
+                                    ${record.section} | ${record.time}
+                                </p>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="color: #4CAF50; font-weight: bold;">✓ Present</div>
+                                <div style="color: #999; font-size: 0.85em; margin-top: 5px;">
+                                    ${markedDate.toLocaleDateString()} ${markedDate.toLocaleTimeString()}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    historyList.appendChild(recordDiv);
+                });
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        function updateStudentAttendance(studentName) {
+            const badges = document.querySelectorAll('.student-badge');
+            badges.forEach(badge => {
+                if (badge.textContent === studentName) {
+                    badge.classList.add('present');
+                    badge.classList.remove('absent');
+                }
+            });
+            updateStats();
         }
 
         // Open Face Setup Modal
@@ -1336,6 +1654,20 @@
             console.log('Loading schedule for:', student);
         }
 
+        // Check for existing session on page load
+        window.addEventListener('load', function() {
+            const savedStudent = sessionStorage.getItem('loggedInStudent');
+            if (savedStudent) {
+                loggedInStudent = JSON.parse(savedStudent);
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('studentDashboard').style.display = 'block';
+                document.getElementById('loggedStudentName').textContent = loggedInStudent.name;
+                document.getElementById('loggedStudentId').textContent = loggedInStudent.id;
+                document.getElementById('loggedStudentClass').textContent = loggedInStudent.class;
+                loadAttendanceHistory();
+            }
+        });
+
         // Initialize student list on load
         window.onload = function () {
             const studentList = document.getElementById('studentList');
@@ -1352,6 +1684,18 @@
             const youtubeLink = document.getElementById('youtubeLink');
             youtubeLink.href = videoInfo.url;
             youtubeLink.textContent = '▶️ ' + videoInfo.title;
+
+            // Check for logged in student
+            const savedStudent = sessionStorage.getItem('loggedInStudent');
+            if (savedStudent) {
+                loggedInStudent = JSON.parse(savedStudent);
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('studentDashboard').style.display = 'block';
+                document.getElementById('loggedStudentName').textContent = loggedInStudent.name;
+                document.getElementById('loggedStudentId').textContent = loggedInStudent.id;
+                document.getElementById('loggedStudentClass').textContent = loggedInStudent.class;
+                loadAttendanceHistory();
+            }
         };
     </script>
 </body>
